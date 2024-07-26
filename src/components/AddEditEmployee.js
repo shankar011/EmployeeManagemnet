@@ -6,9 +6,13 @@ import {
   Typography,
   TextField,
   Button,
+  FormControl,
+  InputLabel,
+  Select,
   MenuItem,
-  Box,
-  Alert
+  FormHelperText,
+  CircularProgress,
+  Box
 } from '@mui/material';
 
 const AddEditEmployee = () => {
@@ -23,7 +27,8 @@ const AddEditEmployee = () => {
     district: ''
   });
   const [countries, setCountries] = useState([]);
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (id) fetchEmployee();
@@ -32,11 +37,13 @@ const AddEditEmployee = () => {
 
   const fetchEmployee = async () => {
     try {
+      setLoading(true);
       const response = await axios.get(`https://669b3f09276e45187d34eb4e.mockapi.io/api/v1/employee/${id}`);
       setEmployee(response.data);
+      setLoading(false);
     } catch (error) {
       console.error('Error fetching employee details:', error);
-      setError('Failed to fetch employee details');
+      setLoading(false);
     }
   };
 
@@ -46,8 +53,40 @@ const AddEditEmployee = () => {
       setCountries(response.data);
     } catch (error) {
       console.error('Error fetching countries:', error);
-      setError('Failed to fetch countries');
     }
+  };
+
+  const validate = () => {
+    let tempErrors = {};
+    let isValid = true;
+
+    if (!employee.name) {
+      tempErrors.name = "Name is required";
+      isValid = false;
+    }
+    if (!employee.emailId.match(/^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/)) {
+      tempErrors.emailId = "Invalid email format";
+      isValid = false;
+    }
+    if (!employee.mobile.match(/^\d{10}$/)) {
+      tempErrors.mobile = "Mobile number must be 10 digits";
+      isValid = false;
+    }
+    if (!employee.country) {
+      tempErrors.country = "Country is required";
+      isValid = false;
+    }
+    if (!employee.state) {
+      tempErrors.state = "State is required";
+      isValid = false;
+    }
+    if (!employee.district) {
+      tempErrors.district = "District is required";
+      isValid = false;
+    }
+
+    setErrors(tempErrors);
+    return isValid;
   };
 
   const handleChange = (e) => {
@@ -57,26 +96,31 @@ const AddEditEmployee = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    try {
-      if (id) {
-        await axios.put(`https://669b3f09276e45187d34eb4e.mockapi.io/api/v1/employee/${id}`, employee);
-      } else {
-        await axios.post('https://669b3f09276e45187d34eb4e.mockapi.io/api/v1/employee', employee);
+    if (validate()) {
+      try {
+        setLoading(true);
+        if (id) {
+          await axios.put(`https://669b3f09276e45187d34eb4e.mockapi.io/api/v1/employee/${id}`, employee);
+        } else {
+          await axios.post('https://669b3f09276e45187d34eb4e.mockapi.io/api/v1/employee', employee);
+        }
+        setLoading(false);
+        navigate('/');
+      } catch (error) {
+        console.error('Error submitting employee details:', error);
+        setLoading(false);
       }
-      navigate('/');
-    } catch (error) {
-      console.error('Error submitting employee details:', error);
-      setError('Failed to submit employee details');
     }
   };
+
+  if (loading) return <CircularProgress />;
 
   return (
     <Container>
       <Typography variant="h4" gutterBottom>
         {id ? 'Edit Employee' : 'Add Employee'}
       </Typography>
-      {error && <Alert severity="error">{error}</Alert>}
-      <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1 }}>
+      <form onSubmit={handleSubmit}>
         <TextField
           label="Name"
           name="name"
@@ -84,18 +128,21 @@ const AddEditEmployee = () => {
           onChange={handleChange}
           variant="outlined"
           fullWidth
-          required
           margin="normal"
+          error={!!errors.name}
+          helperText={errors.name}
         />
         <TextField
           label="Email ID"
           name="emailId"
+          type="email"
           value={employee.emailId}
           onChange={handleChange}
           variant="outlined"
           fullWidth
-          required
           margin="normal"
+          error={!!errors.emailId}
+          helperText={errors.emailId}
         />
         <TextField
           label="Mobile"
@@ -104,29 +151,26 @@ const AddEditEmployee = () => {
           onChange={handleChange}
           variant="outlined"
           fullWidth
-          required
           margin="normal"
+          error={!!errors.mobile}
+          helperText={errors.mobile}
         />
-        <TextField
-          label="Country"
-          name="country"
-          value={employee.country}
-          onChange={handleChange}
-          select
-          variant="outlined"
-          fullWidth
-          required
-          margin="normal"
-        >
-          <MenuItem value="">
-            <em>Select Country</em>
-          </MenuItem>
-          {countries.map((country) => (
-            <MenuItem key={country.id} value={country.country}>
-              {country.country}
-            </MenuItem>
-          ))}
-        </TextField>
+        <FormControl fullWidth margin="normal" error={!!errors.country}>
+          <InputLabel>Country</InputLabel>
+          <Select
+            name="country"
+            value={employee.country}
+            onChange={handleChange}
+          >
+            <MenuItem value="">Select Country</MenuItem>
+            {countries.map((country) => (
+              <MenuItem key={country.id} value={country.country}>
+                {country.country}
+              </MenuItem>
+            ))}
+          </Select>
+          {errors.country && <FormHelperText>{errors.country}</FormHelperText>}
+        </FormControl>
         <TextField
           label="State"
           name="state"
@@ -134,8 +178,9 @@ const AddEditEmployee = () => {
           onChange={handleChange}
           variant="outlined"
           fullWidth
-          required
           margin="normal"
+          error={!!errors.state}
+          helperText={errors.state}
         />
         <TextField
           label="District"
@@ -144,19 +189,19 @@ const AddEditEmployee = () => {
           onChange={handleChange}
           variant="outlined"
           fullWidth
-          required
           margin="normal"
+          error={!!errors.district}
+          helperText={errors.district}
         />
-        <Button
-          type="submit"
-          fullWidth
-          variant="contained"
-          color="primary"
-          sx={{ mt: 3, mb: 2 }}
-        >
-          Submit
-        </Button>
-      </Box>
+        <Box display="flex" justifyContent="space-between" mt={3}>
+          <Button variant="contained" color="primary" type="submit">
+            {id ? 'Update' : 'Add'}
+          </Button>
+          <Button variant="contained" color="secondary" onClick={() => navigate('/')}>
+            Cancel
+          </Button>
+        </Box>
+      </form>
     </Container>
   );
 };
